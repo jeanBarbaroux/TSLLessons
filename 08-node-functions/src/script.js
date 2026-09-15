@@ -2,7 +2,7 @@ import * as THREE from 'three/webgpu'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { TransformControls } from 'three/addons/controls/TransformControls.js'
 import { Inspector } from 'three/addons/inspector/Inspector.js'
-import {uv, Fn, vec3, vec2, float, distance,oneMinus} from 'three/tsl'
+import { uv, Fn, vec3, vec2, float, If, not } from 'three/tsl'
 
 /**
  * Base
@@ -30,8 +30,7 @@ const sizes = {
     height: window.innerHeight
 }
 
-window.addEventListener('resize', () =>
-{
+window.addEventListener('resize', () => {
     // Update sizes
     sizes.width = window.innerWidth
     sizes.height = window.innerHeight
@@ -82,19 +81,25 @@ renderer.inspector = new Inspector()
 
     const material = new THREE.MeshStandardNodeMaterial({ map: uvChecker, transparent: true, side: THREE.DoubleSide })
 
-    const circle = Fn(([coordinates, center, radius, thickness]) => {
-        const distanceToCenter =  coordinates.distance(center)
+    const circle = Fn(({
+        coordinates = uv(),
+        center = vec2(0.5),
+        radius = float(0.25),
+        thickness = float(0.02),
+        inverted = false
+    }) => {
+        const distanceToCenter = coordinates.distance(center)
         const lineSDF = distanceToCenter.sub(radius)
-        const line = lineSDF.abs().step(thickness.mul(0.5)).oneMinus()
+        const line = lineSDF.abs().step(thickness.mul(0.5))
+
+        If(inverted.not(), () => {
+            line.assign(line.oneMinus())
+        })
+
         return line
     })
 
-    material.colorNode = vec3(circle(
-        uv(),
-        vec2(0.5),
-        float(0.25),
-        float(0.02)
-    ))
+    material.colorNode = vec3(circle({ inverted: true }))
 
     const fade = uv().sub(0.5).length().smoothstep(0.5, 0.2)
     material.opacityNode = fade
@@ -142,8 +147,7 @@ scene.add(ambientLight)
 /**
  * Animate
  */
-const tick = () =>
-{
+const tick = () => {
     // Update controls
     controls.update()
 
