@@ -1,7 +1,17 @@
 import * as THREE from 'three/webgpu'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { Inspector } from 'three/addons/inspector/Inspector.js'
-import { uv, vec2, vec3, vec4, float, int, bool, add } from 'three/tsl'
+import { uv, 
+    vec2, 
+    vec3, 
+    vec4,
+     float,
+      int,
+       bool,
+        add, 
+        checker,
+         atan, PI,
+          TWO_PI, rand, hash, time, mx_noise_float, mx_noise_vec3, mx_noise_vec4, mx_worley_noise_float } from 'three/tsl'
 
 /**
  * Base
@@ -92,22 +102,54 @@ const geometry = new THREE.PlaneGeometry(2, 2, 1, 1)
 // Material
 const material = new THREE.MeshBasicNodeMaterial()
 
-//pattern 1
+// pattern 1
 // material.outputNode = vec3(uv(), 1)
 
-//pattern 2
+// pattern 2
 // const pattern = vec3(uv().x)
 
-//pattern 3
+// pattern 3
 // const pattern = vec3(uv().x.mul(10).fract())
 
-//pattern 4
-const pattern = vec3(
-    add(
-        uv().x.mul(10).fract(),
-        uv().y.mul(10).fract()
-    )
+// pattern 4: checker (2 ways)
+// const pattern = vec3(
+//     add(
+//         uv().x.mul(10).fract().step(0.5),
+//         uv().y.mul(10).fract().step(0.5)
+//     ).sub(1).abs()
+// )
+// const pattern = vec3(checker(uv().mul(4))).oneMinus()
+
+// pattern 5: circle
+// const pattern = vec3(uv().distance(vec2(0.5)))
+
+// pattern 6
+// const polarUv = uv().sub(0.5)
+// const pattern = vec3(atan(polarUv.x, polarUv.y)).remap(PI.negate(), PI, 0, 1)
+
+// pattern 7
+// const subdivision = 10
+// const gridUv = uv().mul(subdivision).floor()
+// // const pattern = vec3(hash(gridUv.x.mul(subdivision).add(gridUv.y)))
+// const pattern = vec3(rand(gridUv))
+
+// // pattern 8
+// const perlinUv = uv().mul(5)
+// const perlin = mx_noise_float(perlinUv)
+// const pattern = vec3(perlin.mul(5).add(time.mul(0.2)).fract().step(0.8))
+
+// pattern 9
+const worleyUv = uv().mul(10)
+const worleyNoise = mx_worley_noise_float(vec3(worleyUv, time))
+material.colorNode = palette(
+    worleyNoise,
+    vec3(0.5, 0.3, 0.4),
+    vec3(0.9, 0.5, 0.4),
+    vec3(1.0, 1.0, 1.0),
+    vec3(0.0, 0.1, 0.2)
 )
+
+const pattern = vec3(worleyNoise)
 
 material.outputNode = pattern
 
