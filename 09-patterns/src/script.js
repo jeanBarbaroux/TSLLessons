@@ -1,17 +1,27 @@
 import * as THREE from 'three/webgpu'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { Inspector } from 'three/addons/inspector/Inspector.js'
-import { uv, 
-    vec2, 
-    vec3, 
+import {
+    uv,
+    vec2,
+    vec3,
     vec4,
-     float,
-      int,
-       bool,
-        add, 
-        checker,
-         atan, PI,
-          TWO_PI, rand, hash, time, mx_noise_float, mx_noise_vec3, mx_noise_vec4, mx_worley_noise_float } from 'three/tsl'
+    float,
+    int,
+    bool,
+    add,
+    checker,
+    atan,
+    PI,
+    TWO_PI,
+    rand,
+    hash,
+    time,
+    mx_noise_float,
+    mx_noise_vec3,
+    mx_noise_vec4,
+    mx_worley_noise_float, Fn, cos, mul, mix, color, parallaxUV
+} from 'three/tsl'
 
 /**
  * Base
@@ -57,7 +67,7 @@ scene.add(camera)
 
 // Controls
 const controls = new OrbitControls(camera, canvas)
-controls.target.set(0, 1, 0)
+controls.target.set(0, 0, 0)
 controls.enableDamping = true
 
 /**
@@ -97,7 +107,7 @@ renderer.inspector = new Inspector()
  * Patterns
  */
 // Geometry
-const geometry = new THREE.PlaneGeometry(2, 2, 1, 1)
+const geometry = new THREE.CircleGeometry(2, 32)
 
 // Material
 const material = new THREE.MeshBasicNodeMaterial()
@@ -139,23 +149,46 @@ const material = new THREE.MeshBasicNodeMaterial()
 // const pattern = vec3(perlin.mul(5).add(time.mul(0.2)).fract().step(0.8))
 
 // pattern 9
-const worleyUv = uv().mul(10)
-const worleyNoise = mx_worley_noise_float(vec3(worleyUv, time))
-material.colorNode = palette(
-    worleyNoise,
-    vec3(0.5, 0.3, 0.4),
-    vec3(0.9, 0.5, 0.4),
-    vec3(1.0, 1.0, 1.0),
-    vec3(0.0, 0.1, 0.2)
-)
+// By Inigo Quilez (https://iquilezles.org/articles/palettes/)
+ export const palette = Fn(([ t, a, b, c, d]) =>
+ {
+     return a.add(b.mul(cos(mul(6.283185, c.mul(t).add(d)))))
+ }, { t: 'float', a: 'vec3', b: 'vec3', c: 'vec3', d: 'vec3', return: 'vec3' })
+//
+ const worleyUv = uv().mul(10)
+ const worleyNoise = mx_worley_noise_float(vec3(worleyUv, time.mul(0.2)))
+ const caustic = palette(
+     worleyNoise,
+     vec3(0.5, 0.3, 0.4),
+     vec3(0.9, 0.5, 0.4),
+     vec3(1.0, 1.0, 1.0),
+     vec3(0.0, 0.1, 0.2)
+ )
 
-const pattern = vec3(worleyNoise)
+// pattern 10
+const depthUv = parallaxUV(uv(), 0.5).xy
+const causticsInput = depthUv.mul(6)
+const causticsNoise = mx_worley_noise_float(vec3(causticsInput, time.mul(0.3))).pow(3)
+const depthColor = mix(color(0x1b3956), color(0x11eeff), causticsNoise)
 
-material.outputNode = pattern
+const foamInput = uv().mul(5)
+const foamNoise = mx_noise_float(vec3(foamInput, time.mul(0.1)))
+const foamMask = foamNoise.abs().step(0.05).oneMinus()
+const foamColor = color(0xe5f7ff)
+
+const lilyPadInput = vec3(uv().mul(4), 0)
+const lilyPadNoise = mx_worley_noise_float(lilyPadInput)
+const lilyPadMask = lilyPadNoise.step(0.2).oneMinus()
+const lilyPadColor = mix(color(0xd7e689), color(0x329a89), lilyPadNoise.mul(5))
+
+let final = mix(depthColor, foamColor, foamMask)
+final = mix(final, lilyPadColor, lilyPadMask)
+ material.outputNode = final
 
 // Mesh
 const mesh = new THREE.Mesh(geometry, material)
-mesh.position.y = 1
+mesh.position.y = 0.01
+mesh.rotation.x = -Math.PI * 0.5
 scene.add(mesh)
 
 /**
