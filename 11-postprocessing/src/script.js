@@ -3,7 +3,11 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { Inspector } from 'three/addons/inspector/Inspector.js'
 import { SkyMesh } from 'three/addons/objects/SkyMesh.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
-import { uv } from 'three/tsl'
+import { bloom } from 'three/addons/tsl/display/BloomNode.js'
+import { chromaticAberration} from "three/addons/tsl/display/ChromaticAberrationNode.js";
+import { pixelationPass} from "three/addons/tsl/display/PixelationPassNode.js";
+import { sobel} from "three/addons/tsl/display/SobelOperatorNode.js";
+import {uv, pass, vec2} from 'three/tsl'
 
 /**
  * Base
@@ -63,6 +67,23 @@ const renderer = new THREE.WebGPURenderer({
     canvas: canvas,
     antialias: true
 })
+
+const toneMappingList = {
+    None: THREE.NoToneMapping,
+    Linear: THREE.LinearToneMapping,
+    Reinhard: THREE.ReinhardToneMapping,
+    Cineon: THREE.CineonToneMapping,
+    ACESFilmic: THREE.ACESFilmicToneMapping,
+    AgX: THREE.AgXToneMapping,
+    Neutral: THREE.NeutralToneMapping
+}
+
+const toneMapping = {
+    value: 'Cineon'
+}
+
+renderer.toneMapping = toneMappingList[ toneMapping.value ]
+renderer.toneMappingExposure = 1.5
 renderer.shadowMap.enabled = true
 renderer.shadowMap.type = THREE.PCFShadowMap
 renderer.setSize(sizes.width, sizes.height)
@@ -70,6 +91,42 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 renderer.setClearColor(0x111111)
 renderer.inspector = new Inspector()
 
+// debug
+const rendererGui = renderer.inspector.createParameters('Renderer')
+rendererGui
+    .add(toneMapping, 'value', Object.keys(toneMappingList))
+    .name('toneMapping')
+    .onChange(value => renderer.toneMapping = toneMappingList[value])
+rendererGui.add(renderer, 'toneMappingExposure', 1, 10, 0.01)
+
+/**
+ * Post-processing
+ */
+const renderPipeline = new THREE.RenderPipeline(renderer)
+
+const postProcessingGui = renderer.inspector.createParameters('post-processing')
+
+const scenePass = pass(scene, camera)
+renderPipeline.outputNode = scenePass
+
+// pixelation pass
+// const pixelationPassOutput = pixelationPass(scene, camera, 10, 2, 1)
+// renderPipeline.outputNode = pixelationPassOutput
+
+const bloomPass = bloom(renderPipeline.outputNode)
+bloomPass.threshold.value = 0.25
+bloomPass.strength.value = 1
+renderPipeline.outputNode = renderPipeline.outputNode.add(bloomPass)
+
+const bloomGui = postProcessingGui.addFolder('bloom')
+bloomGui.add(bloomPass.threshold, 'value', 0, 2, 0.01).name('threshold')
+bloomGui.add(bloomPass.strength, 'value', 0, 2, 0.01).name('strength')
+
+const chromaticAberrationPass = chromaticAberration(renderPipeline.outputNode, 2, vec2(0.5), 1)
+renderPipeline.outputNode = chromaticAberrationPass
+
+const sobellPass = sobel(renderPipeline.outputNode)
+renderPipeline.outputNode = renderPipeline.outputNode.add(sobellPass)
 /**
  * Floor
  */
@@ -186,7 +243,7 @@ const tick = () =>
     controls.update()
 
     // Render
-    renderer.render(scene, camera)
+    renderPipeline.render()
 }
 
 renderer.setAnimationLoop(tick)
