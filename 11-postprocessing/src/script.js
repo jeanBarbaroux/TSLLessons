@@ -7,7 +7,22 @@ import { bloom } from 'three/addons/tsl/display/BloomNode.js'
 import { chromaticAberration} from "three/addons/tsl/display/ChromaticAberrationNode.js";
 import { pixelationPass} from "three/addons/tsl/display/PixelationPassNode.js";
 import { sobel} from "three/addons/tsl/display/SobelOperatorNode.js";
-import {uv, pass, vec2} from 'three/tsl'
+import {
+    uv,
+    pass,
+    vec2,
+    mrt,
+    output,
+    normalWorld,
+    positionWorld,
+    vec4,
+    renderOutput,
+    color,
+    convertToTexture, texture, time
+} from 'three/tsl'
+import {fxaa} from "three/addons/tsl/display/FXAANode.js";
+import renderOutputNode from "three/src/nodes/display/RenderOutputNode.js";
+import { shatter} from "./ShatterNode.js";
 
 /**
  * Base
@@ -65,7 +80,7 @@ controls.enableDamping = true
  */
 const renderer = new THREE.WebGPURenderer({
     canvas: canvas,
-    antialias: true
+    antialias: false
 })
 
 const toneMappingList = {
@@ -103,30 +118,55 @@ rendererGui.add(renderer, 'toneMappingExposure', 1, 10, 0.01)
  * Post-processing
  */
 const renderPipeline = new THREE.RenderPipeline(renderer)
+renderPipeline.outputColorTransform = false
 
 const postProcessingGui = renderer.inspector.createParameters('post-processing')
 
 const scenePass = pass(scene, camera)
-renderPipeline.outputNode = scenePass
+scenePass.setMRT(mrt({
+    output: output,
+    normal: normalWorld,
+}))
+renderPipeline.outputNode = scenePass.getTextureNode('output')
+
 
 // pixelation pass
 // const pixelationPassOutput = pixelationPass(scene, camera, 10, 2, 1)
 // renderPipeline.outputNode = pixelationPassOutput
 
-const bloomPass = bloom(renderPipeline.outputNode)
-bloomPass.threshold.value = 0.25
-bloomPass.strength.value = 1
-renderPipeline.outputNode = renderPipeline.outputNode.add(bloomPass)
+// const bloomPass = bloom(renderPipeline.outputNode)
+// bloomPass.threshold.value = 0.25
+// bloomPass.strength.value = 1
+// renderPipeline.outputNode = renderPipeline.outputNode.add(bloomPass)
+//
+// const bloomGui = postProcessingGui.addFolder('bloom')
+// bloomGui.add(bloomPass.threshold, 'value', 0, 2, 0.01).name('threshold')
+// bloomGui.add(bloomPass.strength, 'value', 0, 2, 0.01).name('strength')
+//
+// const chromaticAberrationPass = chromaticAberration(renderPipeline.outputNode, 2, vec2(0.5), 1)
+// renderPipeline.outputNode = chromaticAberrationPass
+//
+//  const sobellPass = sobel(scenePass.getTextureNode('normal')).remapClamp(0.2, 1, 0, 1)
+//  renderPipeline.outputNode = renderPipeline.outputNode.add(sobellPass)
 
-const bloomGui = postProcessingGui.addFolder('bloom')
-bloomGui.add(bloomPass.threshold, 'value', 0, 2, 0.01).name('threshold')
-bloomGui.add(bloomPass.strength, 'value', 0, 2, 0.01).name('strength')
+// // drunk
+// const drunkTexture = convertToTexture(renderPipeline.outputNode)
+// const waveUv = vec2(
+//     uv().x,
+//     uv().y.add(
+//         uv().x.add(time.mul(0.2)).mul(7).sin().mul(0.01)
+//     )
+// )
+// renderPipeline.outputNode = texture(drunkTexture, waveUv).mul(color('aquamarine'))
 
-const chromaticAberrationPass = chromaticAberration(renderPipeline.outputNode, 2, vec2(0.5), 1)
-renderPipeline.outputNode = chromaticAberrationPass
+// shatter effect
+const shatterPass = shatter(renderPipeline.outputNode)
+renderPipeline.outputNode = shatterPass
 
-const sobellPass = sobel(renderPipeline.outputNode)
-renderPipeline.outputNode = renderPipeline.outputNode.add(sobellPass)
+renderPipeline.outputNode = renderOutput(renderPipeline.outputNode)
+const fxaaPass = fxaa(renderPipeline.outputNode)
+renderPipeline.outputNode = fxaaPass
+
 /**
  * Floor
  */
@@ -140,6 +180,10 @@ renderPipeline.outputNode = renderPipeline.outputNode.add(sobellPass)
     mesh.material.opacityNode = uv().sub(0.5).length().smoothstep(0.5, 0.2)
     mesh.rotation.x = - Math.PI * 0.5
     mesh.receiveShadow = true
+    mesh.material.mrtNode = mrt({
+        output: output,
+        normal: vec4(1)
+    })
     scene.add(mesh)
 }
 
@@ -165,6 +209,10 @@ scene.add(model.scene)
  */
 const sky = new SkyMesh()
 sky.scale.setScalar(1000)
+sky.material.mrtNode = mrt({
+    output: output,
+    normal: vec4(1)
+})
 scene.add(sky)
 const effectController = {
     turbidity: 5.5,
