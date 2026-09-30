@@ -18,7 +18,7 @@ import {
     vec4,
     renderOutput,
     color,
-    convertToTexture, texture, time
+    convertToTexture, texture, time, uniform
 } from 'three/tsl'
 import {fxaa} from "three/addons/tsl/display/FXAANode.js";
 import renderOutputNode from "three/src/nodes/display/RenderOutputNode.js";
@@ -134,14 +134,6 @@ renderPipeline.outputNode = scenePass.getTextureNode('output')
 // const pixelationPassOutput = pixelationPass(scene, camera, 10, 2, 1)
 // renderPipeline.outputNode = pixelationPassOutput
 
-// const bloomPass = bloom(renderPipeline.outputNode)
-// bloomPass.threshold.value = 0.25
-// bloomPass.strength.value = 1
-// renderPipeline.outputNode = renderPipeline.outputNode.add(bloomPass)
-//
-// const bloomGui = postProcessingGui.addFolder('bloom')
-// bloomGui.add(bloomPass.threshold, 'value', 0, 2, 0.01).name('threshold')
-// bloomGui.add(bloomPass.strength, 'value', 0, 2, 0.01).name('strength')
 //
 // const chromaticAberrationPass = chromaticAberration(renderPipeline.outputNode, 2, vec2(0.5), 1)
 // renderPipeline.outputNode = chromaticAberrationPass
@@ -160,8 +152,36 @@ renderPipeline.outputNode = scenePass.getTextureNode('output')
 // renderPipeline.outputNode = texture(drunkTexture, waveUv).mul(color('aquamarine'))
 
 // shatter effect
-const shatterPass = shatter(renderPipeline.outputNode)
+const subdivision = uniform(3)
+const seed = uniform(0, 'int')
+const progress = uniform(0.5)
+const thickness = uniform(0.02)
+const _color = uniform(color(0xff824d))
+const colorStrength = uniform(3)
+const offsetStrength = uniform(0.05)
+
+const shatterPass = shatter(
+    renderPipeline.outputNode
+)
 renderPipeline.outputNode = shatterPass
+
+const shatterGui = postProcessingGui.addFolder('shatter')
+shatterGui.add(subdivision, 'value', 1, 10, 1).name('subdivision')
+shatterGui.add(seed, 'value', 0, 100, 1).name('seed')
+shatterGui.add(progress, 'value', 0, 1, 0.01).name('progress')
+shatterGui.add(thickness, 'value', 0, 0.05, 0.0001).name('thickness')
+shatterGui.addColor(_color, 'value').name('color')
+shatterGui.add(colorStrength, 'value', 0, 5, 0.1).name('colorStrength')
+shatterGui.add(offsetStrength, 'value', 0, 0.2, 0.0001).name('offsetStrength')
+
+const bloomPass = bloom(renderPipeline.outputNode)
+bloomPass.threshold.value = 0.25
+bloomPass.strength.value = 1
+renderPipeline.outputNode = renderPipeline.outputNode.add(bloomPass)
+
+const bloomGui = postProcessingGui.addFolder('bloom')
+bloomGui.add(bloomPass.threshold, 'value', 0, 2, 0.01).name('threshold')
+bloomGui.add(bloomPass.strength, 'value', 0, 2, 0.01).name('strength')
 
 renderPipeline.outputNode = renderOutput(renderPipeline.outputNode)
 const fxaaPass = fxaa(renderPipeline.outputNode)
