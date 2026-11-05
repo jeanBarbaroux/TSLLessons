@@ -6,12 +6,16 @@ import {
     instancedBufferAttribute,
     instanceIndex,
     normalLocal,
+    instance,
     positionLocal,
     rotate,
     sin,
     time,
     uniform,
-    uv
+    uv,
+    uniformArray,
+    storage,
+    instancedArray,
 } from 'three/tsl'
 
 /**
@@ -34,8 +38,7 @@ const sizes = {
     height: window.innerHeight
 }
 
-window.addEventListener('resize', () =>
-{
+window.addEventListener('resize', () => {
     // Update sizes
     sizes.width = window.innerWidth
     sizes.height = window.innerHeight
@@ -192,32 +195,168 @@ const wave = sin(time.add(positionLocal.y.mul(3))).mul(0.4)
  * Method 4
  * InstancedBufferAttribute
  */
-const positionArray = new Float32Array(count * 3)
-const rotationArray = new Float32Array(count * 3)
+// const positionArray = new Float32Array(count * 3)
+// const rotationArray = new Float32Array(count * 3)
 
-const positionBuffer = new THREE.InstancedBufferAttribute(positionArray, 3)
-const rotationBuffer = new THREE.InstancedBufferAttribute(rotationArray, 1)
-for (let i = 0; i < count; i++) {
-    const i3 = i * 3
-    const progress = i / (count - 1)
+// const positionBuffer = new THREE.InstancedBufferAttribute(positionArray, 3)
+// const rotationBuffer = new THREE.InstancedBufferAttribute(rotationArray, 1)
+// for (let i = 0; i < count; i++) {
+//     const i3 = i * 3
+//     const progress = i / (count - 1)
 
-    positionArray[i3] = (progress - 0.5) * 4
-    positionArray[i3 + 1] = 0
-    positionArray[i3 + 2] = 0
-    positionArray[i3 + 3] = 0
+//     positionArray[i3] = (progress - 0.5) * 4
+//     positionArray[i3 + 1] = 0
+//     positionArray[i3 + 2] = 0
+//     positionArray[i3 + 3] = 0
 
-    rotationArray[i] = progress * 3
-}
+//     rotationArray[i] = progress * 3
+// }
+
+// material.positionNode = Fn(() => {
+//     const instancedPosition = instancedBufferAttribute(positionBuffer)
+//     const instancedRotation = instancedBufferAttribute(rotationBuffer)
+//     positionLocal.xz.assign(rotate(positionLocal.xz, instancedRotation))
+//     normalLocal.xz.assign(rotate(normalLocal.xz, instancedRotation))
+
+//     positionLocal.addAssign(instancedPosition)
+
+//     positionLocal.z.addAssign(wave)
+
+//     return positionLocal
+// })()
+
+// const mesh = new THREE.Mesh(geometry, material)
+// mesh.count = count
+// mesh.position.y = 1
+// mesh.castShadow = true
+// mesh.receiveShadow = true
+// scene.add(mesh)
+
+/**
+ * Method 5
+ * InstancedInterleavedBuffer
+ */
+// const array = new Float32Array(count * 4)
+// const buffer = new THREE.InstancedInterleavedBuffer(array, 4)
+// for (let i = 0; i < count; i++) {
+//     const i4 = i * 4
+//     const progress = i / (count - 1)
+//     array[i4] = (progress - 0.5) * 4
+//     array[i4 + 1] = 0
+//     array[i4 + 2] = 0
+//     array[i4 + 3] = 0
+//     buffer[i] = progress * 3
+// }
+// material.positionNode = Fn(() => {
+//     const instancedPosition = instancedBufferAttribute(buffer, 'vec3', 0, 0)
+//     const instancedRotation = instancedBufferAttribute(buffer, 'float', 0, 3)
+//     positionLocal.xz.assign(rotate(positionLocal.xz, instancedRotation))
+//     normalLocal.xz.assign(rotate(normalLocal.xz, instancedRotation))
+//     positionLocal.addAssign(instancedPosition)
+//     positionLocal.z.addAssign(wave)
+//     return positionLocal
+// })()
+// const mesh = new THREE.Mesh(geometry, material)
+// mesh.count = count
+// mesh.position.y = 1
+// mesh.castShadow = true
+// mesh.receiveShadow = true
+// scene.add(mesh)
+
+/**
+ * Method 6
+ * Full matrices
+ */
+// const matricesArray = new Float32Array(count * 16)
+// const matricesBuffer = new THREE.InstancedBufferAttribute(matricesArray, 16)
+
+// for (let i = 0; i < count; i++) {
+//     const progress = i / (count - 1)
+//     const position = new THREE.Vector3((progress - 0.5) * 4, 0, 0)
+//     const scale = new THREE.Vector3(1, 1, 1)
+//     const rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, progress * 3, 0))
+
+//     const matrix = new THREE.Matrix4().compose(position, rotation, scale)
+//     matrix.toArray(matricesArray, i * 16)
+// }
+
+// material.positionNode = Fn(({ object }) => {
+//     instance(matricesBuffer)
+//     positionLocal.z.addAssign(wave)
+//     return positionLocal
+// })()
+
+// const mesh = new THREE.Mesh(geometry, material)
+// mesh.count = count
+// mesh.position.y = 1
+// mesh.castShadow = true
+// mesh.receiveShadow = true
+// scene.add(mesh)
+
+/**
+ * Method 7
+ * uniformArray
+ */
+// const positionsArray = []
+// const rotationsArray = []
+
+// for (let i = 0; i < count; i++) {
+//     const progress = i / (count - 1)
+
+//     const position = new THREE.Vector3((progress - 0.5) * 4, 0, 0)
+//     const rotation = progress * 3
+
+//     positionsArray.push(position)
+//     rotationsArray.push(rotation)
+// }
+
+// const positions = uniformArray(positionsArray, 'vec3')
+// const rotations = uniformArray(rotationsArray, 'float')
+
+// material.positionNode = Fn(() => {
+//     const instancedPosition = positions.element(instanceIndex)
+//     const instancedRotation = rotations.element(instanceIndex)
+
+//     positionLocal.xz.assign(rotate(positionLocal.xz, instancedRotation))
+//     normalLocal.xz.assign(rotate(normalLocal.xz, instancedRotation))
+
+//     positionLocal.addAssign(instancedPosition)
+
+//     positionLocal.z.addAssign(wave)
+
+//     return positionLocal
+// })()
+
+// const mesh = new THREE.Mesh(geometry, material)
+// mesh.count = count
+// mesh.position.y = 1
+// mesh.castShadow = true
+// mesh.receiveShadow = true
+// scene.add(mesh)
+
+/**
+ * Method 8
+ * storage & compute
+ */
+// const positionBuffer = new THREE.StorageInstancedBufferAttribute(count, 3, Float32Array)
+// const positionsStorage = storage(positionBuffer, 'vec3', count)
+const positionsStorage = instancedArray(count, 'vec3')
+
+const update = Fn(() => {
+    const position = positionsStorage.element(instanceIndex)
+    const instanceIndexFloat = instanceIndex.toFloat()
+    const progress = instanceIndexFloat.div(count - 1)
+
+    position.x.assign(progress.sub(0.5).mul(4))
+    position.y.assign(time.add(progress).sin())
+})()
+
+const updateCompute = update.compute(count)
 
 material.positionNode = Fn(() => {
-    const instancedPosition = instancedBufferAttribute(positionBuffer)
-    const instancedRotation = instancedBufferAttribute(rotationBuffer)
-    positionLocal.xz.assign(rotate(positionLocal.xz, instancedRotation))
-    normalLocal.xz.assign(rotate(normalLocal.xz, instancedRotation))
+    const instancePosition = positionsStorage.element(instanceIndex)
 
-    positionLocal.addAssign(instancedPosition)
-
-    positionLocal.z.addAssign(wave)
+    positionLocal.addAssign(instancePosition)
 
     return positionLocal
 })()
@@ -254,10 +393,13 @@ lightsGui.add(ambientLight, 'intensity', 0, 5, 0.01).name('ambientIntensity')
 /**
  * Animate
  */
-const tick = () =>
-{
+const tick = () => {
     // Update controls
     controls.update()
+
+    if (typeof updateCompute !== 'undefined') {
+        renderer.compute(updateCompute)
+    }
 
     // Render
     renderer.render(scene, camera)
